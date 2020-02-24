@@ -224,6 +224,8 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
 
     return x
 
+def image_resize(x, size_before):
+    return tf.compat.v1.image.resize(x, size_before[1:3], method='bilinear', align_corners=True)
 
 def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
               OS=16, alpha=1., activation=None):
@@ -391,7 +393,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     size_before = K.int_shape(x)
     # b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
     #                                                 method='bilinear', align_corners=True))(b4)
-    b4 = Lambda(lambda x: tf.image.resize(x, size_before[1:3], method='bilinear', align_corners=True))(b4)
+
+
+
+    # b4 = Lambda(lambda x: tf.image.resize(x, size_before[1:3], method='bilinear', align_corners=True))(b4)
+    b4 = Lambda(image_resize, arguments={"size_before": size_before})(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -428,8 +434,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         size_before2 = K.int_shape(x)
         # x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
         #                                                 skip1.shape[1:3],
-        #                                                 method='bilinear', align_corners=True))(x)
-        x = Lambda(lambda xx: tf.image.resize(xx, skip1.shape[1:3], method='bilinear', align_corners=True))(x)
+        #                                                 method='bilinear', align_corners=True))(x
+        # x = Lambda(lambda xx: tf.image.resize(xx, skip1.shape[1:3], method='bilinear', align_corners=True))(x)
+        x = Lambda(image_resize, arguments={"size_before": skip1.shape})(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
@@ -453,7 +460,8 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
     #                                                 size_before3[1:3],
     #                                                 method='bilinear', align_corners=True))(x)
-    x = Lambda(lambda xx: tf.image.resize(xx, size_before3[1:3], method='bilinear', align_corners=True))(x)
+    # x = Lambda(lambda xx: tf.image.resize(xx, size_before3[1:3], method='bilinear', align_corners=True))(x)
+    x = Lambda(image_resize, arguments={"size_before": size_before3})(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -463,7 +471,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         inputs = img_input
 
     if activation in {'softmax', 'sigmoid'}:
-        x = tf.keras.layers.Activation(activation)(x)
+        x = Activation(activation)(x)
 
     model = Model(inputs, x, name='deeplabv3plus')
 

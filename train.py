@@ -16,7 +16,6 @@ from keras.callbacks import ReduceLROnPlateau, EarlyStopping
 # from tensorflow.keras.optimizers import Adam
 from keras.optimizers import Adam
 
-
 K.clear_session()
 
 def data_loader(img_path, mask_path):
@@ -56,6 +55,8 @@ def data_generator(data, targets, batch_size=2):
 
             yield imgs, masks
 
+# def image_resize_l(xx, size_before4):
+#     return tf.compat.v1.image.resize(xx, size_before4[1:3], method="bilinear", align_corners=True)
 
 start_time = datetime.now()
 img_path = "C:/Users/Administrator/Desktop/deeplab/CelebAMask-HQ/CelebA-HQ-img"
@@ -64,20 +65,21 @@ classes = 2
 batch_size = 2
 X_train, X_test, y_train, y_test = data_loader(img_path, mask_path)
 
-base_model = Deeplabv3(backbone="xception")
-transfered_model = Model(inputs=base_model.input, outputs=base_model.get_layer("decoder_conv1_pointwise_activation").output)
-for layer in transfered_model.layers:
-    layer.trainable = False
-
-x = Conv2D(classes, (1, 1), padding="same", name="logits_semantic")(transfered_model.output)
-# size = tf.int_shape(transfered_model.input)
-size_before4 = K.int_shape(transfered_model.input)
-# x = Lambda(lambda xx: tf.image.resize(xx, size_before4[1:3], method="bilinear", align_corners=True))(x)
-x = Lambda(lambda xx: tf.image.resize(xx, size_before4[1:3], method="bilinear", align_corners=True))(x)
-print(x.shape)
-x = Activation("sigmoid")(x)
-model = Model(inputs=transfered_model.input, outputs=x)
-
+# base_model = Deeplabv3(backbone="xception")
+# transfered_model = Model(inputs=base_model.input, outputs=base_model.get_layer("decoder_conv1_pointwise_activation").output)
+# for layer in transfered_model.layers:
+#     layer.trainable = False
+#
+# x = Conv2D(classes, (1, 1), padding="same", name="logits_semantic")(transfered_model.output)
+# # size = tf.int_shape(transfered_model.input)
+# size_before4 = K.int_shape(transfered_model.input)
+# # x = Lambda(lambda xx: tf.image.resize(xx, size_before4[1:3], method="bilinear", align_corners=True))(x)
+# # x = Lambda(lambda xx: tf.image.resize(xx, size_before4[1:3], method="bilinear", align_corners=True))(x)
+# x = Lambda(image_resize_l, arguments={"size_before4": size_before4})(x)
+# # print(x.shape)
+# x = Activation("sigmoid")(x)
+# model = Model(inputs=transfered_model.input, outputs=x)
+model = Deeplabv3(classes=2, backbone="xception", activation="sigmoid")
 optimizer = Adam(lr=0.001)
 model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=["accuracy"])
 
@@ -91,7 +93,7 @@ history = model.fit_generator(generator=data_generator(X_train, y_train),
                               validation_steps=len(X_test) // batch_size)
 end_time = datetime.now()
 print("runtime:", (end_time - start_time).seconds)
-model.save_weights("face_model_transfered_weights.h5")
-model.save("face_model_transfered.h5")
+model.save_weights("face_model_weights.h5")
+model.save("face_model.h5")
 
 
